@@ -1,0 +1,25 @@
+name: Engineering task
+description: Implement, test, or refactor product code.
+title: "[Engineering] "
+labels: ["engineering"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What behavior or code change is needed?
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Relevant docs, constraints, or implementation hints.
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      placeholder: |
+        - ...
+    validations:
+      required: true

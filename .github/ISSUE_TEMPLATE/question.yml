@@ -1,0 +1,22 @@
+name: Product question
+description: Capture a decision that needs Nate or David.
+title: "[Question] "
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What needs to be decided?
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options
+      description: Known options and tradeoffs.
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision
+      description: Fill this in once resolved.

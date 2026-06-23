@@ -1,0 +1,60 @@
+client:
+  name: Hazel Park Schools
+
+property:
+  name: Hazel Park Administrative Building
+  address: 123 Example Ave, Anytown, ST 00000
+
+inspection:
+  date: 2026-03-27
+  report_date: 2026-06-08
+  time_context: at sunset
+  ambient_f: 34
+  rh_pct: 54
+  wind_mph: 3
+  narrative: >
+    Two anomalous areas totaling approximately 30 SqFt were identified,
+    both on the east wing. Building-specific narrative should be written
+    while the inspection is still fresh.
+
+technician:
+  name: Nate Klan
+  certification: Level II Thermographer
+  cert_provider: ITC
+  cert_number: "REDACTED"
+  cert_expires:
+  email: redacted@example.com
+  phone: 000.000.0000
+
+equipment:
+  name: DJI Mavic 2 Enterprise Advanced
+  detector: 640x512 infrared detector
+  temperature_range: -40 C to 550 C
+
+images:
+  aerial_visual: images/aerial-visual.png
+  aerial_thermal: images/aerial-thermal.png
+  overview_annotated: images/overview-annotated.png
+
+anomalies:
+  - id: "01"
+    location: East wing, east edge near parapet
+    area_sqft: 10
+    severity: moderate
+    observation: >
+      Warm linear signature running along a membrane seam, visible against
+      the cooled field.
+    recommendation: >
+      Core sample or moisture meter verification at the marked reference ID;
+      inspect adjacent seam for compromised welds.
+    image: images/anomaly-01.png
+  - id: "02"
+    location: East wing, center bay near drain line
+    area_sqft: 20
+    severity: moderate
+    observation: >
+      Concentrated warm spot with a diffuse halo near the drain line.
+    recommendation: >
+      Physical testing at the marked reference ID; check drain flashing and
+      surrounding field for ponding history.
+    image: images/anomaly-02.png

@@ -1,0 +1,26 @@
+name: Product task
+description: Scope or refine product behavior.
+title: "[Product] "
+labels: ["product"]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: What should be true when this task is done?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Link docs, report examples, or decisions that matter.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Concrete checks for completion.
+      placeholder: |
+        - ...
+    validations:
+      required: true
