@@ -1,6 +1,6 @@
-# TrueVector Inspection Report System
+# TrueVektor Inspection Report System
 
-Collaboration workspace for building TrueVector's drone thermographic roof-inspection report tooling.
+Collaboration workspace for building TrueVektor's drone thermographic roof-inspection report tooling.
 
 ## Product Goal
 

@@ -5,7 +5,7 @@ Usage (CLI):
     python -m truevector.validator path/to/inspection/folder
 
 Usage (programmatic):
-    from truevector.validator import validate
+    from truevektor.validator import validate
     result = validate("path/to/inspection/folder")
     if not result.ok:
         print(result)
@@ -20,7 +20,7 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
-from truevector.schema import InspectionReport
+from truevektor.schema import InspectionReport
 
 
 # ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
-# TrueVector GitHub Issues
+# TrueVektor GitHub Issues
 
-Registered snapshot of open GitHub Issues from [davidklan-png/TrueVector](https://github.com/davidklan-png/TrueVector/issues).
+Registered snapshot of open GitHub Issues from [davidklan-png/TrueVektor](https://github.com/davidklan-png/TrueVektor/issues).
 
 - Snapshot date: 2026-06-23
 - Source: GitHub Issues (all opened 2026-06-22)
@@ -28,7 +28,7 @@ Registered snapshot of open GitHub Issues from [davidklan-png/TrueVector](https:
 - State: Open
 - Milestone: Phase 0: Report hygiene
 - Labels: docs, phase-0, template
-- Link: https://github.com/davidklan-png/TrueVector/issues/1
+- Link: https://github.com/davidklan-png/TrueVektor/issues/1
 
 ### Goal
 
@@ -51,7 +51,7 @@ The review found that print-driver PDFs had broken text layers, which is a criti
 - State: Open
 - Milestone: Phase 0: Report hygiene
 - Labels: phase-0, question, template
-- Link: https://github.com/davidklan-png/TrueVector/issues/2
+- Link: https://github.com/davidklan-png/TrueVektor/issues/2
 
 ### Goal
 
@@ -75,7 +75,7 @@ The report feedback found an ITC badge with an expiration date of May 7, 2025 on
 - State: Open
 - Milestone: Phase 1: MVP report generator
 - Labels: mvp, phase-1, template
-- Link: https://github.com/davidklan-png/TrueVector/issues/3
+- Link: https://github.com/davidklan-png/TrueVektor/issues/3
 
 ### Goal
 
@@ -100,7 +100,7 @@ Create the template the report generator will fill, based on the Administrative 
 - State: Open
 - Milestone: Phase 1: MVP report generator
 - Labels: engineering, mvp, phase-1
-- Link: https://github.com/davidklan-png/TrueVector/issues/4
+- Link: https://github.com/davidklan-png/TrueVektor/issues/4
 
 ### Goal
 
@@ -126,7 +126,7 @@ Make `inspection.yaml` precise enough that report generation is deterministic an
 - State: Open
 - Milestone: Phase 1: MVP report generator
 - Labels: engineering, mvp, phase-1
-- Link: https://github.com/davidklan-png/TrueVector/issues/5
+- Link: https://github.com/davidklan-png/TrueVektor/issues/5
 
 ### Goal
 
@@ -134,7 +134,7 @@ Create the core local web application: a Python server that serves a browser UI,
 
 ### How it works
 
-The inspector runs one command (e.g. `truevector`) to start the local server, then works in Chrome. The app reads and writes `inspection.yaml` — the user never hand-edits it.
+The inspector runs one command (e.g. `truevektor`) to start the local server, then works in Chrome. The app reads and writes `inspection.yaml` — the user never hand-edits it.
 
 ### Acceptance criteria
 
@@ -159,7 +159,7 @@ The inspector runs one command (e.g. `truevector`) to start the local server, th
 - State: Open
 - Milestone: Phase 1: MVP report generator
 - Labels: engineering, mvp, phase-1
-- Link: https://github.com/davidklan-png/TrueVector/issues/6
+- Link: https://github.com/davidklan-png/TrueVektor/issues/6
 
 ### Goal
 
@@ -183,7 +183,7 @@ The original reports looked visually fine but had broken text layers due to prin
 - State: Open
 - Milestone: Phase 1: MVP report generator
 - Labels: docs, mvp, phase-1, template
-- Link: https://github.com/davidklan-png/TrueVector/issues/7
+- Link: https://github.com/davidklan-png/TrueVektor/issues/7
 
 ### Goal
 
@@ -208,7 +208,7 @@ Turn the current sample YAML into a fixture that can actually exercise the repor
 - State: Open
 - Milestone: Phase 1: MVP report generator
 - Labels: engineering, mvp, phase-1, product
-- Link: https://github.com/davidklan-png/TrueVector/issues/8
+- Link: https://github.com/davidklan-png/TrueVektor/issues/8
 
 ### Goal
 
@@ -233,7 +233,7 @@ The report feedback identified large reports as the place where the current manu
 - State: Open
 - Milestone: Phase 0: Report hygiene
 - Labels: product, question
-- Link: https://github.com/davidklan-png/TrueVector/issues/9
+- Link: https://github.com/davidklan-png/TrueVektor/issues/9
 
 ### Goal
 
