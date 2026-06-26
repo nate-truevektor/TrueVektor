@@ -1,0 +1,2077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrueVektor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f5f5f4;
+      --surface:   #ffffff;
+      --border:    #e2e2df;
+      --muted:     #9b9b97;
+      --text:      #1c1c1a;
+      --accent:    #1a56db;
+      --accent-lt: #eff4ff;
+      --danger:    #c81e1e;
+      --warn:      #92400e;
+      --warn-bg:   #fffbeb;
+      --ok:        #166534;
+      --ok-bg:     #f0fdf4;
+      --radius:    8px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    body { font-family: var(--font); font-size: 14px; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Layout ── */
+    #app { display: flex; flex-direction: column; min-height: 100vh; }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      height: 48px;
+    }
+    header h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; flex-shrink: 0; }
+    header .folder-path { font-size: 12px; color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    nav { display: flex; gap: 2px; }
+    nav button {
+      background: none; border: none; cursor: pointer;
+      padding: 6px 12px; border-radius: 6px;
+      font-size: 13px; font-weight: 500; color: var(--muted);
+      transition: background 0.1s, color 0.1s;
+    }
+    nav button:hover { background: var(--bg); color: var(--text); }
+    nav button.active { background: var(--accent-lt); color: var(--accent); }
+
+    #main-content { flex: 1; padding: 24px; max-width: 860px; margin: 0 auto; width: 100%; }
+
+    /* ── Views ── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Folder browser ── */
+    #browser-view { max-width: 600px; margin: 48px auto; }
+    #browser-view h2 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+    #browser-view p  { color: var(--muted); margin-bottom: 20px; font-size: 13px; }
+
+    .breadcrumb { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 8px; font-size: 12px; }
+    .breadcrumb button { background: none; border: none; color: var(--accent); cursor: pointer; padding: 2px 4px; border-radius: 4px; font-size: 12px; }
+    .breadcrumb button:hover { background: var(--accent-lt); }
+    .breadcrumb .sep { color: var(--muted); }
+
+    .dir-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; max-height: 420px; overflow-y: auto; }
+    .dir-list .empty { padding: 32px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    .dir-entry { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; }
+    .dir-entry:last-child { border-bottom: none; }
+    .dir-entry:hover { background: var(--bg); }
+    .dir-entry .icon { font-size: 16px; flex-shrink: 0; }
+    .dir-entry .name { flex: 1; font-size: 13px; }
+    .dir-entry .badge { font-size: 10px; font-weight: 600; background: var(--accent-lt); color: var(--accent); border-radius: 4px; padding: 2px 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .dir-entry .open-btn { font-size: 12px; background: var(--accent); color: #fff; border: none; border-radius: 5px; padding: 4px 10px; cursor: pointer; opacity: 0; transition: opacity 0.1s; }
+    .dir-entry:hover .open-btn { opacity: 1; }
+
+    /* ── Cards / forms ── */
+    .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
+    .section-card > header { padding: 12px 18px; font-weight: 600; font-size: 13px; background: var(--bg); border-bottom: 1px solid var(--border); border-radius: 0; height: auto; display: flex; align-items: center; gap: 10px; }
+    .section-card > header span { flex: 1; }
+    .section-card .fields { padding: 18px; display: grid; gap: 14px; }
+
+    .field-row { display: grid; grid-template-columns: 160px 1fr; align-items: start; gap: 12px; }
+    @media (max-width: 560px) { .field-row { grid-template-columns: 1fr; } }
+
+    label { font-size: 12px; font-weight: 500; color: var(--muted); padding-top: 7px; }
+
+    input[type="text"], input[type="date"], input[type="number"],
+    input[type="email"], input[type="tel"], textarea, select {
+      width: 100%; padding: 6px 10px;
+      border: 1px solid var(--border); border-radius: 6px;
+      font-family: var(--font); font-size: 13px; color: var(--text);
+      background: var(--surface); transition: border-color 0.15s; outline: none;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+    select { cursor: pointer; }
+
+    /* ── Toolbar ── */
+    #toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    #toolbar h2 { font-size: 17px; font-weight: 600; flex: 1; }
+
+    .btn { padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; border: none; cursor: pointer; transition: opacity 0.15s; }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-ghost   { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    .btn-sm      { padding: 5px 10px; font-size: 12px; }
+    .btn-danger-ghost { background: #fee2e2; color: var(--danger); border: none; }
+
+    /* ── Validation banner ── */
+    #validation-banner { border-radius: var(--radius); padding: 12px 16px; margin-bottom: 20px; font-size: 13px; display: none; }
+    #validation-banner.ok      { background: var(--ok-bg);   color: var(--ok);    display: block; }
+    #validation-banner.warn    { background: var(--warn-bg);  color: var(--warn);  display: block; }
+    #validation-banner.errored { background: #fef2f2;         color: var(--danger); display: block; }
+    #validation-banner ul { margin: 6px 0 0 18px; }
+    #validation-banner li { margin-bottom: 3px; }
+
+    #save-status { font-size: 12px; color: var(--muted); transition: opacity 0.3s; }
+
+    /* ── Anomalies table ── */
+    .anomaly-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .anomaly-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); background: var(--bg); border-bottom: 1px solid var(--border); }
+    .anomaly-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .anomaly-table tr:last-child td { border-bottom: none; }
+    .anomaly-table tr:hover td { background: var(--bg); }
+    .severity-badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: capitalize; }
+    .severity-moderate { background: #fef3c7; color: #92400e; }
+    .severity-severe   { background: #fee2e2; color: #991b1b; }
+    .severity-minor    { background: #f0fdf4; color: #166534; }
+    .no-anomalies { padding: 32px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* ── Equipment lists (both inspection and settings presets) ── */
+    #equipment-presets-list { display: grid; gap: 10px; padding: 18px; }
+    #inspection-equipment-list { display: grid; gap: 8px; padding: 14px 18px 4px; }
+
+    /* ── Image slot picker ── */
+    .image-slot { display: grid; grid-template-columns: 160px 1fr auto; align-items: center; gap: 12px; padding: 10px 18px; border-bottom: 1px solid var(--border); }
+    .image-slot:last-child { border-bottom: none; }
+    .image-slot label { font-size: 12px; font-weight: 500; color: var(--muted); }
+    .image-slot .slot-path { font-size: 12px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .image-slot .slot-path.empty { color: var(--muted); font-style: italic; }
+
+    /* ── File browser panel ── */
+    .file-browser-panel {
+      display: none;
+      position: fixed; inset: 0; z-index: 300;
+      background: rgba(0,0,0,0.35);
+      align-items: center; justify-content: center;
+    }
+    .file-browser-panel.open { display: flex; }
+    .file-browser-box {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      width: 540px; max-width: 95vw;
+      max-height: 80vh;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .file-browser-box header {
+      padding: 14px 18px; font-weight: 600; font-size: 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px; height: auto;
+    }
+    .file-browser-box header span { flex: 1; }
+    .fb-breadcrumb { padding: 8px 18px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12px; border-bottom: 1px solid var(--border); background: var(--bg); }
+    .fb-breadcrumb button { background: none; border: none; color: var(--accent); cursor: pointer; padding: 2px 4px; border-radius: 4px; font-size: 12px; }
+    .fb-breadcrumb button:hover { background: var(--accent-lt); }
+    .fb-breadcrumb .sep { color: var(--muted); }
+    .fb-list { flex: 1; overflow-y: auto; }
+    .fb-entry { display: flex; align-items: center; gap: 10px; padding: 9px 18px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 13px; transition: background 0.1s; }
+    .fb-entry:last-child { border-bottom: none; }
+    .fb-entry:hover { background: var(--bg); }
+    .fb-entry .fb-icon { font-size: 15px; flex-shrink: 0; }
+    .fb-entry .fb-name { flex: 1; }
+    .fb-entry.fb-dir { color: var(--text); }
+    .fb-entry.fb-file { color: var(--accent); font-weight: 500; }
+    .fb-entry.fb-file:hover { background: var(--accent-lt); }
+    .fb-empty { padding: 32px; text-align: center; color: var(--muted); font-size: 13px; }
+    .preset-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 8px;
+      align-items: center;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+    .preset-row input { background: var(--surface); }
+    .preset-row .drag-handle { color: var(--muted); cursor: grab; font-size: 14px; }
+    .no-presets { padding: 24px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* ── Anomaly preset rows (settings) ── */
+    .anomaly-preset-row {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .apr-top { display: flex; gap: 8px; align-items: center; }
+    .apr-top input { flex: 1; background: var(--surface); }
+    .apr-top select { width: 110px; flex-shrink: 0; background: var(--surface); }
+
+    /* ── Page 2 section rows (settings) ── */
+    .page2-section-row {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px 12px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .page2-section-row .p2-top { display: flex; gap: 8px; align-items: center; }
+    .page2-section-row .p2-top input { flex: 1; background: var(--surface); font-weight: 600; }
+    .page2-section-row textarea { background: var(--surface); resize: vertical; min-height: 80px; }
+
+    /* ── Settings save banner ── */
+    #settings-status { font-size: 12px; color: var(--muted); }
+
+    /* ── Spinner ── */
+    .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Generic modal panels ── */
+    .modal-panel {
+      display: none; position: fixed; inset: 0; z-index: 100;
+      background: rgba(0,0,0,0.35);
+      align-items: center; justify-content: center;
+    }
+    .modal-panel.open { display: flex; }
+    .modal-box {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      max-width: 95vw; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .modal-box > header {
+      padding: 14px 18px; font-weight: 600; font-size: 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px; height: auto; background: var(--surface);
+    }
+    .modal-box > header span { flex: 1; }
+    .modal-footer {
+      padding: 12px 18px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    /* ── Thermal markup modal ── */
+    #markup-modal .modal-box { width: 96vw; height: 92vh; }
+    .markup-layout { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+    .markup-sidebar {
+      width: 160px; border-right: 1px solid var(--border);
+      overflow-y: auto; flex-shrink: 0; display: flex; flex-direction: column;
+    }
+    .markup-sidebar-header {
+      padding: 8px 12px; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .markup-img-item {
+      padding: 8px 12px; font-size: 12px; cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      transition: background 0.1s;
+    }
+    .markup-img-item:hover { background: var(--bg); }
+    .markup-img-item.active { background: var(--accent-lt); color: var(--accent); font-weight: 500; }
+    .markup-panel {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0;
+      border-right: 1px solid var(--border);
+    }
+    .markup-panel:last-child { border-right: none; }
+    .markup-panel-bar {
+      padding: 7px 10px; border-bottom: 1px solid var(--border); background: var(--bg);
+      display: flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: 12px;
+    }
+    .markup-panel-bar-bottom {
+      padding: 6px 10px; border-top: 1px solid var(--border); background: var(--bg);
+      display: flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: 12px; color: var(--muted);
+    }
+    .markup-canvas-container {
+      flex: 1; position: relative; background: #111;
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    #markup-canvas  { max-width: 100%; max-height: 100%; cursor: crosshair; display: none; }
+    #ortho-canvas   { max-width: 100%; max-height: 100%; cursor: crosshair; display: none; }
+    #markup-no-image, #ortho-no-image { color: #888; font-size: 14px; text-align: center; padding: 20px; }
+
+    /* ── Markup form panel (anomaly details inline) ── */
+    .markup-form-panel {
+      width: 270px; flex-shrink: 0;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .markup-form-scroll {
+      flex: 1; overflow-y: auto; padding: 12px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .mf-row { display: flex; flex-direction: column; gap: 4px; }
+    .mf-row label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding-top: 0; }
+    .mf-row input, .mf-row textarea, .mf-row select { font-size: 12px; padding: 5px 8px; }
+    .mf-row textarea { resize: vertical; min-height: 60px; }
+    .mf-row .mf-file-row { display: flex; gap: 6px; align-items: center; }
+    .mf-row .mf-file-row .slot-path { flex: 1; font-size: 11px; min-width: 0; }
+    .mf-status-block { border-top: 1px solid var(--border); padding-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+    .mf-status-block .mf-status-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .mf-status-block .mf-status-value { font-size: 12px; color: var(--muted); }
+    .markup-form-footer { padding: 10px 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+    .markup-form-empty { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); font-size: 13px; padding: 20px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>TrueVektor</h1>
+    <span class="folder-path" id="header-path">No inspection open</span>
+    <nav id="main-nav" style="display:none">
+      <button id="nav-inspection" class="active" onclick="showView('editor-view'); setNavActive('nav-inspection')">Inspection</button>
+      <button id="nav-settings" onclick="showView('settings-view'); setNavActive('nav-settings'); loadSettings()">Settings</button>
+    </nav>
+    <button class="btn btn-ghost btn-sm" id="btn-change-folder" style="display:none" onclick="closeInspection()">Change folder</button>
+    <button class="btn btn-ghost btn-sm" id="btn-settings-only" onclick="showView('settings-view'); loadSettings()">⚙ Settings</button>
+  </header>
+
+  <div id="main-content">
+
+    <!-- ── Folder browser ── -->
+    <div class="view active" id="browser-view">
+      <h2>Open an inspection folder</h2>
+      <p>Navigate to a folder that contains an <code>inspection.yaml</code>, or choose an empty folder to start a new inspection.</p>
+      <div class="breadcrumb" id="breadcrumb"></div>
+      <div class="dir-list" id="dir-list">
+        <div class="empty"><span class="spinner"></span></div>
+      </div>
+    </div>
+
+    <!-- ── Inspection editor ── -->
+    <div class="view" id="editor-view">
+      <div id="toolbar">
+        <h2 id="editor-title">Inspection</h2>
+        <span id="save-status"></span>
+        <button class="btn btn-ghost" id="btn-validate">Validate</button>
+        <button class="btn btn-ghost" id="btn-generate-report">Generate Report</button>
+        <button class="btn btn-primary" id="btn-save">Save</button>
+      </div>
+
+      <div id="validation-banner"></div>
+
+      <!-- Client -->
+      <div class="section-card">
+        <header><span>Client</span></header>
+        <div class="fields">
+          <div class="field-row">
+            <label for="client-name">Organization name</label>
+            <input type="text" id="client-name" data-path="client.name" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Property -->
+      <div class="section-card">
+        <header><span>Property</span></header>
+        <div class="fields">
+          <div class="field-row">
+            <label for="property-name">Building name</label>
+            <input type="text" id="property-name" data-path="property.name" />
+          </div>
+          <div class="field-row">
+            <label for="property-address">Address</label>
+            <input type="text" id="property-address" data-path="property.address" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Inspection conditions -->
+      <div class="section-card">
+        <header><span>Inspection conditions</span></header>
+        <div class="fields">
+          <div class="field-row">
+            <label for="insp-date">Inspection date</label>
+            <input type="date" id="insp-date" data-path="inspection.date" />
+          </div>
+          <div class="field-row">
+            <label for="insp-report-date">Report date</label>
+            <input type="date" id="insp-report-date" data-path="inspection.report_date" />
+          </div>
+          <div class="field-row">
+            <label for="insp-time">Time context</label>
+            <input type="text" id="insp-time" data-path="inspection.time_context" placeholder="e.g. at sunset" />
+          </div>
+          <div class="field-row">
+            <label for="insp-ambient">Ambient temp (°F)</label>
+            <input type="number" id="insp-ambient" data-path="inspection.ambient_f" step="0.1" />
+          </div>
+          <div class="field-row">
+            <label for="insp-rh">Relative humidity (%)</label>
+            <input type="number" id="insp-rh" data-path="inspection.rh_pct" step="0.1" />
+          </div>
+          <div class="field-row">
+            <label for="insp-wind">Wind speed (mph)</label>
+            <input type="number" id="insp-wind" data-path="inspection.wind_mph" step="0.1" />
+          </div>
+          <div class="field-row">
+            <label for="insp-narrative">Findings narrative</label>
+            <div>
+              <textarea id="insp-narrative" data-path="inspection.narrative" rows="4"></textarea>
+              <div id="narrative-var-hint" style="font-size:11px; color:var(--muted); margin-top:4px; display:none;">
+                <code style="background:var(--bg); border:1px solid var(--border); border-radius:3px; padding:1px 4px;">{total_area}</code>
+                = <span id="narrative-total-value"></span> sq ft
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Technician -->
+      <div class="section-card">
+        <header><span>Technician</span></header>
+        <div class="fields">
+          <div class="field-row">
+            <label for="tech-name">Name</label>
+            <input type="text" id="tech-name" data-path="technician.name" />
+          </div>
+          <div class="field-row">
+            <label for="tech-cert">Certification</label>
+            <input type="text" id="tech-cert" data-path="technician.certification" placeholder="e.g. Level II Thermographer" />
+          </div>
+
+          <div class="field-row">
+            <label for="tech-email">Email</label>
+            <input type="email" id="tech-email" data-path="technician.email" />
+          </div>
+          <div class="field-row">
+            <label for="tech-phone">Phone</label>
+            <input type="tel" id="tech-phone" data-path="technician.phone" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Equipment -->
+      <div class="section-card">
+        <header>
+          <span>Equipment</span>
+          <select id="equip-preset-picker" style="font-size:12px; padding:4px 8px; width:auto; flex-shrink:0;">
+            <option value="">+ Add from preset…</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" id="btn-add-custom-equip">+ Add custom</button>
+        </header>
+        <div style="padding: 8px 18px 0; display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:8px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted);" id="equip-col-headers" style="display:none">
+          <span>Drone / camera</span><span>IR detector</span><span>Temp range</span><span></span>
+        </div>
+        <div id="inspection-equipment-list"></div>
+      </div>
+
+      <!-- Images -->
+      <div class="section-card">
+        <header><span>Images</span></header>
+        <div class="image-slot">
+          <label>Intro page image</label>
+          <span class="slot-path empty" id="slot-aerial-visual">No file selected</span>
+          <button class="btn btn-ghost btn-sm" onclick="openFilePicker('aerial_visual', 'Select intro page image')">Browse…</button>
+        </div>
+        <div class="image-slot">
+          <label>Orthomosaic / overview</label>
+          <span class="slot-path empty" id="slot-orthomosaic">No file selected</span>
+          <button class="btn btn-ghost btn-sm" onclick="openFilePicker('orthomosaic', 'Select orthomosaic / overview image')">Browse…</button>
+        </div>
+      </div>
+
+      <!-- Thermal images -->
+      <div class="section-card">
+        <header>
+          <span>Thermal images</span>
+          <button class="btn btn-ghost btn-sm" id="btn-pick-thermal-folder">Browse…</button>
+        </header>
+        <div id="thermal-folder-info" style="padding:12px 18px; font-size:13px; color:var(--muted); border-bottom:1px solid var(--border);">
+          No folder selected
+        </div>
+        <div id="thermal-images-found" style="display:none;">
+          <div style="padding:8px 18px 4px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted);">Images in folder</div>
+          <div id="thermal-image-list" style="padding:0 18px 14px; display:flex; flex-wrap:wrap; gap:6px;"></div>
+        </div>
+      </div>
+
+      <!-- Anomalies -->
+      <div class="section-card">
+        <header>
+          <span>Anomalies (<span id="anomaly-count">0</span>)</span>
+          <button class="btn btn-ghost btn-sm" id="btn-find-anomalies">Review thermal images →</button>
+        </header>
+        <div id="anomaly-body"></div>
+      </div>
+    </div>
+
+    <!-- ── Settings ── -->
+    <div class="view" id="settings-view">
+      <div id="toolbar">
+        <button class="btn btn-ghost" id="btn-settings-back">← Back</button>
+        <h2>Settings</h2>
+        <span id="settings-status"></span>
+        <button class="btn btn-primary" id="btn-save-settings">Save settings</button>
+      </div>
+
+      <!-- Company -->
+      <div class="section-card">
+        <header><span>Company</span></header>
+        <div class="fields">
+          <div class="field-row">
+            <label for="s-company-name">Company name</label>
+            <input type="text" id="s-company-name" placeholder="e.g. True Vektor, Inc." />
+          </div>
+          <div class="field-row">
+            <label>Logo</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span id="s-logo-path" class="slot-path empty">No logo selected</span>
+              <button class="btn btn-ghost btn-sm" id="btn-choose-logo">Choose</button>
+              <button class="btn btn-danger-ghost btn-sm" id="btn-clear-logo" style="display:none;">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Technician defaults -->
+      <div class="section-card">
+        <header><span>Your information</span></header>
+        <div class="fields">
+          <div class="field-row">
+            <label for="s-tech-name">Name</label>
+            <input type="text" id="s-tech-name" />
+          </div>
+          <div class="field-row">
+            <label for="s-tech-cert">Certification</label>
+            <input type="text" id="s-tech-cert" placeholder="e.g. Level II Thermographer" />
+          </div>
+
+          <div class="field-row">
+            <label for="s-tech-email">Email</label>
+            <input type="email" id="s-tech-email" />
+          </div>
+          <div class="field-row">
+            <label for="s-tech-phone">Phone</label>
+            <input type="tel" id="s-tech-phone" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Default narrative -->
+      <div class="section-card">
+        <header><span>Default findings narrative</span></header>
+        <div class="fields">
+          <p style="font-size:12px; color:var(--muted); margin-bottom:4px">
+            Pre-filled in every new inspection. Edit it per-report as needed.
+          </p>
+          <p style="font-size:12px; color:var(--muted); margin-bottom:8px;">
+            Use <code style="background:var(--bg); border:1px solid var(--border); border-radius:3px; padding:1px 4px;">{total_area}</code>
+            anywhere in the narrative to automatically insert the total anomalous area in sq ft (e.g. <em>… totaling {total_area} sq ft were identified …</em>).
+            The value is calculated from the anomalies list and rounded to the nearest sq ft.
+          </p>
+          <textarea id="s-narrative" rows="5" placeholder="e.g. Two anomalous areas totaling {total_area} sq ft were identified…"></textarea>
+        </div>
+      </div>
+
+      <!-- Equipment presets -->
+      <div class="section-card">
+        <header>
+          <span>Equipment presets</span>
+          <button class="btn btn-ghost btn-sm" id="btn-add-preset">+ Add preset</button>
+        </header>
+        <div style="padding: 8px 18px 4px; display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:8px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted);">
+          <span>Drone / camera</span><span>IR detector</span><span>Temp range</span><span></span>
+        </div>
+        <div id="equipment-presets-list"></div>
+      </div>
+
+      <!-- Anomaly presets -->
+      <div class="section-card">
+        <header>
+          <span>Anomaly presets</span>
+          <button class="btn btn-ghost btn-sm" id="btn-add-anomaly-preset">+ Add preset</button>
+        </header>
+        <p style="padding:10px 18px 0; font-size:12px; color:var(--muted);">
+          Saved observations you can load into the anomaly form during image review.
+        </p>
+        <div id="anomaly-presets-list" style="padding:12px 18px; display:flex; flex-direction:column; gap:10px;"></div>
+      </div>
+
+      <!-- Page 2 content -->
+      <div class="section-card">
+        <header>
+          <span>Page 2 content</span>
+          <button class="btn btn-ghost btn-sm" id="btn-add-page2-section">+ Add section</button>
+        </header>
+        <p style="padding:10px 18px 0; font-size:12px; color:var(--muted);">
+          These sections appear on page 2 of the report in order — typically scope of work, methodology, limitations, or standards referenced.
+        </p>
+        <div id="page2-sections-list" style="padding:12px 18px; display:flex; flex-direction:column; gap:12px;"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Thermal markup modal (with integrated anomaly form) ── -->
+<div class="modal-panel" id="markup-modal" style="z-index:110;">
+  <div class="modal-box">
+    <header>
+      <span>Thermal image review</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeMarkupModal()">✕ Close</button>
+    </header>
+    <div class="markup-layout">
+
+      <!-- Image list sidebar -->
+      <div class="markup-sidebar">
+        <div class="markup-sidebar-header">Thermal images</div>
+        <div id="markup-image-list-inner"></div>
+      </div>
+
+      <!-- Thermal polygon panel -->
+      <div class="markup-panel">
+        <div class="markup-panel-bar">
+          <button class="btn btn-ghost btn-sm" id="markup-prev-btn" onclick="markupNavPrev()" disabled>← Prev</button>
+          <span id="markup-img-name" style="flex:1; text-align:center; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">—</span>
+          <button class="btn btn-ghost btn-sm" id="markup-next-btn" onclick="markupNavNext()" disabled>Next →</button>
+        </div>
+        <div class="markup-canvas-container">
+          <canvas id="markup-canvas"></canvas>
+          <div id="markup-no-image">Select an image from the list</div>
+        </div>
+        <div class="markup-panel-bar-bottom">
+          <button class="btn btn-ghost btn-sm" onclick="clearMarkupPolygon()">Clear polygon</button>
+          <button class="btn btn-ghost btn-sm" onclick="undoLastMarkupPoint()">Undo</button>
+          <span id="markup-point-count" style="flex:1; text-align:center;"></span>
+        </div>
+      </div>
+
+      <!-- Orthomosaic marker panel -->
+      <div class="markup-panel">
+        <div class="markup-panel-bar" style="font-weight:600;">
+          Orthomosaic — click to place location marker
+        </div>
+        <div class="markup-canvas-container">
+          <canvas id="ortho-canvas"></canvas>
+          <div id="ortho-no-image">No orthomosaic image set</div>
+        </div>
+        <div class="markup-panel-bar-bottom">
+          <span id="ortho-marker-status" style="flex:1;">No marker placed</span>
+          <button class="btn btn-ghost btn-sm" id="ortho-clear-btn" onclick="clearOrthoMarker()" style="display:none;">Clear marker</button>
+        </div>
+      </div>
+
+      <!-- Anomaly details form panel -->
+      <div class="markup-form-panel">
+        <div class="markup-panel-bar" style="font-weight:600; flex-shrink:0;">Anomaly details</div>
+        <div class="markup-form-scroll" id="markup-form-scroll">
+          <div class="mf-row" id="mf-preset-row" style="display:none;">
+            <label>Load preset</label>
+            <select id="mf-preset-picker">
+              <option value="">— select preset —</option>
+            </select>
+          </div>
+          <div class="mf-row">
+            <label>ID</label>
+            <input type="text" id="mf-id" placeholder="01" style="max-width:70px;" />
+          </div>
+          <div class="mf-row">
+            <label>Location</label>
+            <input type="text" id="mf-location" placeholder="e.g. East wing, east edge near parapet" />
+          </div>
+          <div class="mf-row">
+            <label>Area (sq ft)</label>
+            <input type="number" id="mf-area" step="0.1" min="0" style="max-width:100px;" />
+          </div>
+          <div class="mf-row">
+            <label>Observation</label>
+            <textarea id="mf-observation" rows="3" placeholder="What was observed thermally…"></textarea>
+          </div>
+          <div class="mf-row">
+            <label>Close-up image</label>
+            <span id="mf-image-path" class="slot-path empty" style="font-size:11px;">Select an image from the list</span>
+          </div>
+          <div class="mf-status-block">
+            <span class="mf-status-label">Thermal polygon</span>
+            <span id="mf-polygon-status" class="mf-status-value">None marked</span>
+          </div>
+          <div class="mf-status-block">
+            <span class="mf-status-label">Ortho marker</span>
+            <span id="mf-ortho-status-short" class="mf-status-value">Not placed</span>
+          </div>
+        </div>
+        <div class="markup-form-footer">
+          <button class="btn btn-danger-ghost btn-sm" id="mf-delete-btn" style="display:none;" onclick="deleteAnomalyFromMarkup()">Delete</button>
+          <span style="flex:1;"></span>
+          <button class="btn btn-primary btn-sm" id="mf-save-btn" onclick="saveAnomalyFromMarkup()">Save anomaly</button>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <span style="font-size:12px; color:var(--muted);">← → keys to navigate images</span>
+      <span style="flex:1;"></span>
+      <button class="btn btn-ghost" onclick="closeMarkupModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── File browser modal ── -->
+<div class="file-browser-panel" id="file-browser-panel">
+  <div class="file-browser-box">
+    <header>
+      <span id="fb-title">Select image</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeFilePicker()">✕ Cancel</button>
+    </header>
+    <div class="fb-breadcrumb" id="fb-breadcrumb"></div>
+    <!-- Shown only in folder-select mode -->
+    <div id="fb-select-folder-bar" style="display:none; padding:10px 18px; border-bottom:1px solid var(--border); background:var(--accent-lt);">
+      <button class="btn btn-primary btn-sm" id="fb-select-folder-btn">Select this folder</button>
+      <span style="font-size:12px; color:var(--accent); margin-left:10px;" id="fb-current-label"></span>
+    </div>
+    <div class="fb-list" id="fb-list">
+      <div class="fb-empty"><span class="spinner"></span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ───────────────────────────────────────────────────────────────────
+let currentData = null;
+let currentSettings = null;
+let saveTimer = null;
+let _inspectionFolder = null;
+
+// ── Utilities ───────────────────────────────────────────────────────────────
+function get(obj, dotPath) {
+  return dotPath.split('.').reduce((o, k) => (o != null ? o[k] : undefined), obj);
+}
+
+function set(obj, dotPath, value) {
+  const keys = dotPath.split('.');
+  let cur = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (cur[keys[i]] == null) cur[keys[i]] = {};
+    cur = cur[keys[i]];
+  }
+  cur[keys[keys.length - 1]] = value;
+}
+
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function setNavActive(id) {
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function setSaveStatus(msg, color) {
+  const el = document.getElementById('save-status');
+  el.textContent = msg;
+  el.style.color = color || 'var(--muted)';
+}
+
+function setSettingsStatus(msg, color) {
+  const el = document.getElementById('settings-status');
+  el.textContent = msg;
+  el.style.color = color || 'var(--muted)';
+}
+
+// ── Folder browser ───────────────────────────────────────────────────────────
+async function browse(path) {
+  const list = document.getElementById('dir-list');
+  list.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+
+  const url = path ? `/api/browse?path=${encodeURIComponent(path)}` : '/api/browse';
+  const res = await fetch(url);
+  const json = await res.json();
+
+  const bc = document.getElementById('breadcrumb');
+  bc.innerHTML = '';
+  (json.breadcrumb || []).forEach((crumb, i) => {
+    if (i > 0) bc.insertAdjacentHTML('beforeend', '<span class="sep">/</span>');
+    const btn = document.createElement('button');
+    btn.textContent = crumb.name;
+    btn.onclick = () => browse(crumb.path);
+    bc.appendChild(btn);
+  });
+
+  list.innerHTML = '';
+  if (!json.entries || json.entries.length === 0) {
+    list.innerHTML = '<div class="empty">No subfolders here.</div>';
+    return;
+  }
+
+  json.entries.forEach(entry => {
+    const row = document.createElement('div');
+    row.className = 'dir-entry';
+    row.innerHTML = `
+      <span class="icon">📁</span>
+      <span class="name">${entry.name}</span>
+      ${entry.is_inspection ? '<span class="badge">inspection</span>' : ''}
+      <button class="open-btn">${entry.is_inspection ? 'Open' : 'Open as new'}</button>
+    `;
+    row.querySelector('.open-btn').onclick = e => { e.stopPropagation(); openInspection(entry.path); };
+    row.onclick = () => browse(entry.path);
+    list.appendChild(row);
+  });
+}
+
+async function openInspection(path) {
+  const res = await fetch('/api/open', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({path}),
+  });
+  const json = await res.json();
+  if (json.error) { alert(json.error); return; }
+
+  _inspectionFolder = path;
+  document.getElementById('header-path').textContent = path;
+  document.getElementById('btn-change-folder').style.display = '';
+  document.getElementById('btn-settings-only').style.display = 'none';
+  document.getElementById('main-nav').style.display = '';
+
+  await loadSettings();   // need presets for equipment picker
+  await loadInspection();
+  showView('editor-view');
+  setNavActive('nav-inspection');
+}
+
+async function closeInspection() {
+  _inspectionFolder = null;
+  await fetch('/api/close', {method: 'POST'});
+  document.getElementById('header-path').textContent = 'No inspection open';
+  document.getElementById('btn-change-folder').style.display = 'none';
+  document.getElementById('btn-settings-only').style.display = '';
+  document.getElementById('main-nav').style.display = 'none';
+  document.getElementById('validation-banner').style.display = 'none';
+  currentData = null;
+  showView('browser-view');
+  browse();
+}
+
+// ── Inspection editor ────────────────────────────────────────────────────────
+async function loadInspection() {
+  const res = await fetch('/api/inspection');
+  const json = await res.json();
+  if (json.error) { alert(json.error); return; }
+  currentData = json.data;
+  populateForm(currentData);
+}
+
+function refreshPresetPicker() {
+  const sel = document.getElementById('equip-preset-picker');
+  sel.innerHTML = '<option value="">+ Add from preset…</option>';
+  const presets = currentSettings ? (currentSettings.equipment_presets || []) : [];
+  presets.forEach((p, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+  // Hide the picker if there are no presets
+  sel.style.display = presets.length ? '' : 'none';
+}
+
+function renderInspectionEquipment(equipList) {
+  const container = document.getElementById('inspection-equipment-list');
+  const headers = document.getElementById('equip-col-headers');
+  const list = Array.isArray(equipList) ? equipList : (equipList ? [equipList] : []);
+
+  if (list.length === 0) {
+    headers.style.display = 'none';
+    container.innerHTML = '<div style="padding:16px 18px; font-size:13px; color:var(--muted)">No equipment added yet.</div>';
+    return;
+  }
+
+  headers.style.display = 'grid';
+  container.innerHTML = '';
+  list.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'preset-row';
+    row.dataset.equipIndex = i;
+    row.innerHTML = `
+      <input type="text" placeholder="Drone / camera name" value="${item.name || ''}" data-equip-field="name" />
+      <input type="text" placeholder="IR detector spec" value="${item.detector || ''}" data-equip-field="detector" />
+      <input type="text" placeholder="Temp range" value="${item.temperature_range || ''}" data-equip-field="temperature_range" />
+      <button class="btn btn-danger-ghost btn-sm" title="Remove">✕</button>
+    `;
+    row.querySelector('button').onclick = () => {
+      removeInspectionEquipment(i);
+    };
+    // Auto-save on edit
+    row.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('input', () => {
+        setSaveStatus('Unsaved changes');
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveInspection, 1500);
+      });
+    });
+    container.appendChild(row);
+  });
+}
+
+function collectInspectionEquipment() {
+  return Array.from(document.querySelectorAll('#inspection-equipment-list .preset-row')).map(row => ({
+    name:              row.querySelector('[data-equip-field="name"]').value.trim(),
+    detector:          row.querySelector('[data-equip-field="detector"]').value.trim(),
+    temperature_range: row.querySelector('[data-equip-field="temperature_range"]').value.trim(),
+  }));
+}
+
+function removeInspectionEquipment(index) {
+  const list = collectInspectionEquipment();
+  list.splice(index, 1);
+  renderInspectionEquipment(list);
+  setSaveStatus('Unsaved changes');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveInspection, 1500);
+}
+
+function populateForm(data) {
+  document.querySelectorAll('[data-path]').forEach(el => {
+    const val = get(data, el.dataset.path);
+    el.value = (val != null) ? val : '';
+  });
+  refreshPresetPicker();
+  renderInspectionEquipment(data.equipment || []);
+  renderImageSlots(data);
+  renderThermalFolder(data);
+  renderAnomalies(data.anomalies || []);
+}
+
+function _computeTotalArea(anomalies) {
+  return Math.round((anomalies || []).reduce((s, a) => s + (a.area_sqft || 0), 0));
+}
+
+function _updateNarrativeHint(anomalies) {
+  const total = _computeTotalArea(anomalies);
+  const hint  = document.getElementById('narrative-var-hint');
+  const val   = document.getElementById('narrative-total-value');
+  if (!hint || !val) return;
+  val.textContent = total;
+  hint.style.display = '';
+}
+
+function renderAnomalies(anomalies) {
+  document.getElementById('anomaly-count').textContent = anomalies.length;
+  _updateNarrativeHint(anomalies);
+  const body = document.getElementById('anomaly-body');
+
+  if (anomalies.length === 0) {
+    body.innerHTML = '<div class="no-anomalies">No anomalies recorded yet. Click "Review thermal images →" to get started.</div>';
+    return;
+  }
+
+  const totalArea = anomalies.reduce((s, a) => s + (a.area_sqft || 0), 0);
+  body.innerHTML = `
+    <table class="anomaly-table">
+      <thead><tr><th>ID</th><th>Location</th><th>Area (sq ft)</th><th>Polygon</th><th>Ortho marker</th><th></th></tr></thead>
+      <tbody>
+        ${anomalies.map((a, i) => `
+          <tr>
+            <td><strong>${a.id}</strong></td>
+            <td>${a.location}</td>
+            <td>${a.area_sqft}</td>
+            <td>${a.polygon_coords && a.polygon_coords.length >= 3
+              ? `<span style="color:var(--ok);font-size:12px;">✓ ${a.polygon_coords.length} pts</span>`
+              : '<span style="color:var(--muted);font-size:12px;">—</span>'}</td>
+            <td>${a.orthomosaic_marker
+              ? '<span style="color:var(--ok);font-size:12px;">✓ placed</span>'
+              : '<span style="color:var(--muted);font-size:12px;">—</span>'}</td>
+            <td><button class="btn btn-ghost btn-sm" onclick="openEditAnomalyInMarkup(${i})">Edit</button></td>
+          </tr>
+        `).join('')}
+        <tr style="font-weight:600; border-top: 2px solid var(--border)">
+          <td colspan="3" style="text-align:right; color:var(--muted); font-size:12px;">Total anomalous area</td>
+          <td>${Math.round(totalArea)} sq ft</td><td colspan="2"></td>
+        </tr>
+      </tbody>
+    </table>`;
+}
+
+function collectForm() {
+  const data = JSON.parse(JSON.stringify(currentData));
+  document.querySelectorAll('[data-path]').forEach(el => {
+    let val = el.value.trim();
+    if (el.type === 'number') val = val === '' ? null : parseFloat(val);
+    else if (val === '') val = null;
+    set(data, el.dataset.path, val);
+  });
+  data.equipment = collectInspectionEquipment();
+  return data;
+}
+
+async function saveInspection() {
+  const data = collectForm();
+  setSaveStatus('Saving…');
+  const res = await fetch('/api/inspection', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (json.error) {
+    setSaveStatus('Save failed: ' + json.error, 'var(--danger)');
+  } else {
+    currentData = data;
+    setSaveStatus('Saved ✓', 'var(--ok)');
+    setTimeout(() => setSaveStatus(''), 3000);
+  }
+}
+
+// Equipment — add from preset dropdown
+document.getElementById('equip-preset-picker').addEventListener('change', function () {
+  const idx = this.value;
+  if (idx === '' || !currentSettings) return;
+  const preset = currentSettings.equipment_presets[parseInt(idx)];
+  if (!preset) return;
+  const current = collectInspectionEquipment();
+  current.push({ name: preset.name || '', detector: preset.detector || '', temperature_range: preset.temperature_range || '' });
+  renderInspectionEquipment(current);
+  this.value = ''; // reset picker
+  setSaveStatus('Unsaved changes');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveInspection, 1500);
+});
+
+// Equipment — add blank custom row
+document.getElementById('btn-add-custom-equip').addEventListener('click', () => {
+  const current = collectInspectionEquipment();
+  current.push({ name: '', detector: '', temperature_range: '' });
+  renderInspectionEquipment(current);
+  // Focus the new row
+  const rows = document.querySelectorAll('#inspection-equipment-list .preset-row');
+  if (rows.length) rows[rows.length - 1].querySelector('input').focus();
+});
+
+// Auto-save on any form input
+document.addEventListener('input', e => {
+  if (!e.target.dataset.path) return;
+  setSaveStatus('Unsaved changes');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveInspection, 1500);
+});
+
+document.getElementById('btn-save').addEventListener('click', () => { clearTimeout(saveTimer); saveInspection(); });
+
+async function runValidation() {
+  const banner = document.getElementById('validation-banner');
+  banner.className = '';
+  banner.style.display = 'none';
+  const res = await fetch('/api/validate');
+  const json = await res.json();
+
+  let cls, html;
+  if (json.ok && json.warnings.length === 0) {
+    cls = 'ok'; html = '✅ Validation passed — no errors or warnings.';
+  } else if (json.ok) {
+    cls = 'warn';
+    html = `⚠️ Passed with warnings:<ul>${json.warnings.map(w=>`<li>${w}</li>`).join('')}</ul>`;
+  } else {
+    cls = 'errored';
+    const errs = json.errors.map(e=>`<li>${e}</li>`).join('');
+    const warns = json.warnings.length ? `<br>Warnings:<ul>${json.warnings.map(w=>`<li>${w}</li>`).join('')}</ul>` : '';
+    html = `❌ Validation failed:<ul>${errs}</ul>${warns}`;
+  }
+  banner.className = cls;
+  banner.innerHTML = html;
+}
+
+document.getElementById('btn-validate').addEventListener('click', runValidation);
+
+// ── Report generation ─────────────────────────────────────────────────────────
+document.getElementById('btn-generate-report').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-generate-report');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+
+  try {
+    // First save so the report reflects the latest data
+    await saveInspection();
+
+    const res = await fetch('/api/generate-report', { method: 'POST' });
+    const json = await res.json();
+
+    if (!res.ok || !json.ok) {
+      alert('Report generation failed:\n' + (json.error || 'Unknown error'));
+      return;
+    }
+
+    // Download the generated file via the /api/download endpoint
+    const downloadUrl = '/api/download?path=' + encodeURIComponent(json.path);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = 'inspection-report.docx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (err) {
+    alert('Report generation error:\n' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+});
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+async function loadSettings() {
+  const res = await fetch('/api/settings');
+  currentSettings = await res.json();
+  populateSettingsForm(currentSettings);
+}
+
+function populateSettingsForm(s) {
+  const t = s.technician || {};
+  document.getElementById('s-company-name').value  = s.company_name || '';
+  _updateLogoDisplay(s.logo_path || '');
+  document.getElementById('s-tech-name').value     = t.name || '';
+  document.getElementById('s-tech-cert').value     = t.certification || '';
+  document.getElementById('s-tech-email').value    = t.email || '';
+  document.getElementById('s-tech-phone').value    = t.phone || '';
+  document.getElementById('s-narrative').value     = s.default_narrative || '';
+  renderPresetList(s.equipment_presets || []);
+  renderAnomalyPresetList(s.anomaly_presets || []);
+  renderPage2Sections(s.page2_sections || []);
+}
+
+function _updateLogoDisplay(path) {
+  const span = document.getElementById('s-logo-path');
+  const clearBtn = document.getElementById('btn-clear-logo');
+  if (path) {
+    span.textContent = path.split('/').pop().split('\\').pop();
+    span.title = path;
+    span.classList.remove('empty');
+    span.dataset.fullPath = path;
+    clearBtn.style.display = '';
+  } else {
+    span.textContent = 'No logo selected';
+    span.title = '';
+    span.classList.add('empty');
+    span.dataset.fullPath = '';
+    clearBtn.style.display = 'none';
+  }
+}
+
+function renderPresetList(presets) {
+  const container = document.getElementById('equipment-presets-list');
+  if (presets.length === 0) {
+    container.innerHTML = '<div class="no-presets">No presets yet. Click "+ Add preset" to create one.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  presets.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'preset-row';
+    row.dataset.index = i;
+    row.innerHTML = `
+      <input type="text" placeholder="Drone / camera name" value="${p.name || ''}" data-preset-field="name" />
+      <input type="text" placeholder="IR detector spec" value="${p.detector || ''}" data-preset-field="detector" />
+      <input type="text" placeholder="Temp range" value="${p.temperature_range || ''}" data-preset-field="temperature_range" />
+      <button class="btn btn-danger-ghost btn-sm" title="Remove">✕</button>
+    `;
+    row.querySelector('button').onclick = () => removePreset(i);
+    container.appendChild(row);
+  });
+}
+
+function collectPresets() {
+  const rows = document.querySelectorAll('.preset-row');
+  return Array.from(rows).map(row => ({
+    name:              row.querySelector('[data-preset-field="name"]').value.trim(),
+    detector:          row.querySelector('[data-preset-field="detector"]').value.trim(),
+    temperature_range: row.querySelector('[data-preset-field="temperature_range"]').value.trim(),
+  }));
+}
+
+function removePreset(index) {
+  const presets = collectPresets();
+  presets.splice(index, 1);
+  renderPresetList(presets);
+}
+
+document.getElementById('btn-add-preset').addEventListener('click', () => {
+  const presets = collectPresets();
+  presets.push({name: '', detector: '', temperature_range: ''});
+  renderPresetList(presets);
+  // Focus the new row's first input
+  const rows = document.querySelectorAll('.preset-row');
+  if (rows.length) rows[rows.length - 1].querySelector('input').focus();
+});
+
+function renderAnomalyPresetList(presets) {
+  const container = document.getElementById('anomaly-presets-list');
+  if (presets.length === 0) {
+    container.innerHTML = '<div class="no-presets">No presets yet. Click "+ Add preset" to create one.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  presets.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'anomaly-preset-row';
+    row.dataset.index = i;
+    const esc = s => (s || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    row.innerHTML = `
+      <div class="apr-top">
+        <input type="text" placeholder="Preset name (e.g. Membrane seam anomaly)" value="${esc(p.name)}" data-apr="name" />
+        <button class="btn btn-danger-ghost btn-sm" title="Remove">✕</button>
+      </div>
+      <textarea placeholder="Observation text…" data-apr="observation" rows="2">${esc(p.observation)}</textarea>
+    `;
+    row.querySelector('button').onclick = () => removeAnomalyPreset(i);
+    container.appendChild(row);
+  });
+}
+
+function collectAnomalyPresets() {
+  return Array.from(document.querySelectorAll('.anomaly-preset-row')).map(row => ({
+    name:        row.querySelector('[data-apr="name"]').value.trim(),
+    observation: row.querySelector('[data-apr="observation"]').value.trim(),
+  }));
+}
+
+function removeAnomalyPreset(index) {
+  const presets = collectAnomalyPresets();
+  presets.splice(index, 1);
+  renderAnomalyPresetList(presets);
+}
+
+document.getElementById('btn-add-anomaly-preset').addEventListener('click', () => {
+  const presets = collectAnomalyPresets();
+  presets.push({name: '', observation: ''});
+  renderAnomalyPresetList(presets);
+  const rows = document.querySelectorAll('.anomaly-preset-row');
+  if (rows.length) rows[rows.length - 1].querySelector('input').focus();
+});
+
+function renderPage2Sections(sections) {
+  const container = document.getElementById('page2-sections-list');
+  if (sections.length === 0) {
+    container.innerHTML = '<div class="no-presets">No sections yet. Click "+ Add section" to create one.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  sections.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.className = 'page2-section-row';
+    const esc = t => (t || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    row.innerHTML = `
+      <div class="p2-top">
+        <input type="text" placeholder="Section heading…" value="${esc(s.heading)}" data-p2="heading" />
+        <button class="btn btn-danger-ghost btn-sm" title="Remove">✕</button>
+      </div>
+      <textarea placeholder="Section body…" data-p2="body" rows="4">${esc(s.body)}</textarea>
+    `;
+    row.querySelector('button').onclick = () => removePage2Section(i);
+    container.appendChild(row);
+  });
+}
+
+function collectPage2Sections() {
+  return Array.from(document.querySelectorAll('.page2-section-row')).map(row => ({
+    heading: row.querySelector('[data-p2="heading"]').value.trim(),
+    body:    row.querySelector('[data-p2="body"]').value.trim(),
+  }));
+}
+
+function removePage2Section(index) {
+  const sections = collectPage2Sections();
+  sections.splice(index, 1);
+  renderPage2Sections(sections);
+}
+
+document.getElementById('btn-add-page2-section').addEventListener('click', () => {
+  const sections = collectPage2Sections();
+  sections.push({heading: '', body: ''});
+  renderPage2Sections(sections);
+  const rows = document.querySelectorAll('.page2-section-row');
+  if (rows.length) rows[rows.length - 1].querySelector('input').focus();
+});
+
+function collectSettingsForm() {
+  return {
+    company_name: document.getElementById('s-company-name').value.trim() || '',
+    logo_path:    document.getElementById('s-logo-path').dataset.fullPath || '',
+    technician: {
+      name:          document.getElementById('s-tech-name').value.trim() || null,
+      certification: document.getElementById('s-tech-cert').value.trim() || null,
+      email:         document.getElementById('s-tech-email').value.trim() || null,
+      phone:         document.getElementById('s-tech-phone').value.trim() || null,
+    },
+    default_narrative: document.getElementById('s-narrative').value.trim() || '',
+    equipment_presets: collectPresets(),
+    anomaly_presets:   collectAnomalyPresets(),
+    page2_sections:    collectPage2Sections(),
+  };
+}
+
+async function saveSettings() {
+  const data = collectSettingsForm();
+  setSettingsStatus('Saving…');
+  const res = await fetch('/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (json.error) {
+    setSettingsStatus('Save failed: ' + json.error, 'var(--danger)');
+  } else {
+    currentSettings = data;
+    setSettingsStatus('Saved ✓', 'var(--ok)');
+    setTimeout(() => setSettingsStatus(''), 3000);
+    // Refresh equipment preset picker if inspection is open
+    if (currentData) refreshPresetPicker();
+  }
+}
+
+document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
+
+document.getElementById('btn-choose-logo').addEventListener('click', () => {
+  openSettingsFilePicker('Select logo image', (path) => {
+    _updateLogoDisplay(path);
+  });
+});
+
+document.getElementById('btn-clear-logo').addEventListener('click', () => {
+  _updateLogoDisplay('');
+});
+
+
+document.getElementById('btn-settings-back').addEventListener('click', () => {
+  if (currentData) {
+    showView('editor-view');
+    setNavActive('nav-inspection');
+  } else {
+    showView('browser-view');
+  }
+});
+
+// ── Thermal images folder ────────────────────────────────────────────────────
+
+function renderThermalFolder(data) {
+  const folder = data && data.images && data.images.thermal_images_folder;
+  const infoEl = document.getElementById('thermal-folder-info');
+  const foundEl = document.getElementById('thermal-images-found');
+  const listEl  = document.getElementById('thermal-image-list');
+
+  if (!folder) {
+    infoEl.textContent = 'No folder selected';
+    infoEl.style.color = 'var(--muted)';
+    foundEl.style.display = 'none';
+    return;
+  }
+
+  infoEl.textContent = folder;
+  infoEl.style.color = 'var(--text)';
+
+  // Fetch the image files in that folder
+  fetch(`/api/list-files?path=${encodeURIComponent(folder)}`)
+    .then(r => r.json())
+    .then(json => {
+      listEl.innerHTML = '';
+      const files = json.files || [];
+      if (files.length === 0) {
+        listEl.innerHTML = '<span style="font-size:13px; color:var(--muted)">No image files found in this folder.</span>';
+      } else {
+        const sample = files.slice(0, 20);
+        sample.forEach(f => {
+          const chip = document.createElement('span');
+          chip.style.cssText = 'font-size:12px; background:var(--bg); border:1px solid var(--border); border-radius:5px; padding:3px 9px; color:var(--text);';
+          chip.textContent = f.name;
+          chip.title = f.path;
+          listEl.appendChild(chip);
+        });
+        const summary = document.createElement('span');
+        summary.style.cssText = 'font-size:12px; color:var(--muted); align-self:center;';
+        summary.textContent = files.length > 20
+          ? `… and ${files.length - 20} more (${files.length} total)`
+          : `${files.length} image${files.length !== 1 ? 's' : ''} total`;
+        listEl.appendChild(summary);
+      }
+      foundEl.style.display = 'block';
+    })
+    .catch(() => {
+      listEl.innerHTML = '<span style="font-size:13px; color:var(--danger)">Could not read folder.</span>';
+      foundEl.style.display = 'block';
+    });
+}
+
+document.getElementById('btn-pick-thermal-folder').addEventListener('click', () => {
+  openFolderPicker('Select thermal images folder', (selectedPath) => {
+    if (!currentData) return;
+    if (!currentData.images) currentData.images = {};
+    currentData.images.thermal_images_folder = selectedPath;
+    renderThermalFolder(currentData);
+    setSaveStatus('Unsaved changes');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveInspection, 1500);
+  });
+});
+
+// ── File/folder picker shared state ──────────────────────────────────────────
+
+let _pickerMode   = 'file';   // 'file' | 'folder'
+let _folderPickerCallback = null;
+let _settingsFileCallback = null;   // callback(path) for settings logo/file picks
+let _fbCurrentPath = null;
+
+function openFolderPicker(title, callback) {
+  _pickerMode = 'folder';
+  _folderPickerCallback = callback;
+  document.getElementById('fb-title').textContent = title;
+  document.getElementById('fb-select-folder-bar').style.display = 'block';
+  document.getElementById('file-browser-panel').classList.add('open');
+  browseFiles(_current_folder_hint());
+}
+
+function _current_folder_hint() {
+  // Start in inspection folder if available
+  return null;
+}
+
+document.getElementById('fb-select-folder-btn').addEventListener('click', () => {
+  if (_pickerMode === 'folder' && _folderPickerCallback && _fbCurrentPath) {
+    _folderPickerCallback(_fbCurrentPath);
+    closeFilePicker();
+  }
+});
+
+// ── Images section ───────────────────────────────────────────────────────────
+
+// Map slot keys to their display element IDs
+const SLOT_IDS = {
+  aerial_visual: 'slot-aerial-visual',
+  orthomosaic:   'slot-orthomosaic',
+};
+
+// Map slot keys to where they live in inspection data
+const SLOT_DATA_KEYS = {
+  aerial_visual: ['images', 'aerial_visual'],
+  orthomosaic:   ['images', 'orthomosaic'],
+};
+
+function renderImageSlots(data) {
+  Object.entries(SLOT_IDS).forEach(([key, elId]) => {
+    const el = document.getElementById(elId);
+    const keys = SLOT_DATA_KEYS[key];
+    const val = keys.reduce((o, k) => (o && o[k] != null ? o[k] : null), data);
+    if (val) {
+      // Show just the filename for readability, full path in title tooltip
+      el.textContent = val.split('/').pop().split('\\').pop();
+      el.title = val;
+      el.classList.remove('empty');
+    } else {
+      el.textContent = 'No file selected';
+      el.title = '';
+      el.classList.add('empty');
+    }
+  });
+}
+
+// ── File picker modal ─────────────────────────────────────────────────────────
+
+let _pickerSlotKey = null;
+let _pickerTitle = '';
+
+function openFilePicker(slotKey, title) {
+  _pickerMode = 'file';
+  _pickerSlotKey = slotKey;
+  _pickerTitle = title;
+  _folderPickerCallback = null;
+  document.getElementById('fb-title').textContent = title;
+  document.getElementById('fb-select-folder-bar').style.display = 'none';
+  document.getElementById('file-browser-panel').classList.add('open');
+  browseFiles(null);
+}
+
+function closeFilePicker() {
+  document.getElementById('file-browser-panel').classList.remove('open');
+  _pickerSlotKey = null;
+  _folderPickerCallback = null;
+  _settingsFileCallback = null;
+  _pickerMode = 'file';
+}
+
+function openSettingsFilePicker(title, callback) {
+  _pickerMode = 'file';
+  _pickerSlotKey = null;
+  _folderPickerCallback = null;
+  _settingsFileCallback = callback;
+  document.getElementById('fb-title').textContent = title;
+  document.getElementById('fb-select-folder-bar').style.display = 'none';
+  document.getElementById('file-browser-panel').classList.add('open');
+  browseFiles(null);
+}
+
+async function browseFiles(path) {
+  const listEl = document.getElementById('fb-list');
+  listEl.innerHTML = '<div class="fb-empty"><span class="spinner"></span></div>';
+
+  const url = path ? `/api/list-files?path=${encodeURIComponent(path)}` : '/api/list-files';
+  const res = await fetch(url);
+  const json = await res.json();
+  if (json.error) { listEl.innerHTML = `<div class="fb-empty">${json.error}</div>`; return; }
+
+  // Track current path for folder-select mode
+  _fbCurrentPath = json.current;
+  if (_pickerMode === 'folder') {
+    const label = document.getElementById('fb-current-label');
+    label.textContent = json.current.split('/').pop() || json.current;
+  }
+
+  // Breadcrumb
+  const bc = document.getElementById('fb-breadcrumb');
+  bc.innerHTML = '';
+  (json.breadcrumb || []).forEach((crumb, i) => {
+    if (i > 0) bc.insertAdjacentHTML('beforeend', '<span class="sep">/</span>');
+    const btn = document.createElement('button');
+    btn.textContent = crumb.name;
+    btn.onclick = () => browseFiles(crumb.path);
+    bc.appendChild(btn);
+  });
+
+  listEl.innerHTML = '';
+
+  if (json.parent) {
+    const up = document.createElement('div');
+    up.className = 'fb-entry fb-dir';
+    up.innerHTML = '<span class="fb-icon">📁</span><span class="fb-name">.. (up)</span>';
+    up.onclick = () => browseFiles(json.parent);
+    listEl.appendChild(up);
+  }
+
+  (json.subdirs || []).forEach(dir => {
+    const row = document.createElement('div');
+    row.className = 'fb-entry fb-dir';
+    row.innerHTML = `<span class="fb-icon">📁</span><span class="fb-name">${dir.name}</span>`;
+    row.onclick = () => browseFiles(dir.path);
+    listEl.appendChild(row);
+  });
+
+  if ((json.files || []).length === 0 && (json.subdirs || []).length === 0) {
+    listEl.innerHTML += '<div class="fb-empty">No image files found here.</div>';
+    return;
+  }
+
+  (json.files || []).forEach(file => {
+    const row = document.createElement('div');
+    row.className = 'fb-entry fb-file';
+    row.innerHTML = `<span class="fb-icon">🖼</span><span class="fb-name">${file.name}</span>`;
+    row.onclick = () => selectFile(file.path);
+    listEl.appendChild(row);
+  });
+}
+
+function selectFile(absolutePath) {
+
+  // Settings logo/file pick (not tied to inspection data)
+  if (_settingsFileCallback) {
+    _settingsFileCallback(absolutePath);
+    closeFilePicker();
+    return;
+  }
+
+  if (!_pickerSlotKey || !currentData) return;
+
+  // Write into currentData
+  const keys = SLOT_DATA_KEYS[_pickerSlotKey];
+  let obj = currentData;
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (!obj[keys[i]]) obj[keys[i]] = {};
+    obj = obj[keys[i]];
+  }
+  obj[keys[keys.length - 1]] = absolutePath;
+
+  renderImageSlots(currentData);
+  closeFilePicker();
+
+  // Trigger save
+  setSaveStatus('Unsaved changes');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveInspection, 1500);
+}
+
+// ── Anomaly form (integrated into markup modal) ───────────────────────────────
+
+let _anomalyEditIndex = null;        // null = new anomaly; number = editing existing
+let _anomalyEditImagePath = null;
+
+function _refreshAnomalyPresetPicker() {
+  const presets = currentSettings ? (currentSettings.anomaly_presets || []) : [];
+  const row = document.getElementById('mf-preset-row');
+  const sel = document.getElementById('mf-preset-picker');
+  if (presets.length === 0) {
+    row.style.display = 'none';
+    return;
+  }
+  row.style.display = '';
+  sel.innerHTML = '<option value="">— load a preset —</option>';
+  presets.forEach((p, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = p.name || `Preset ${i + 1}`;
+    sel.appendChild(opt);
+  });
+  sel.value = '';
+}
+
+document.getElementById('mf-preset-picker').addEventListener('change', function () {
+  const idx = this.value;
+  if (idx === '' || !currentSettings) return;
+  const p = (currentSettings.anomaly_presets || [])[parseInt(idx)];
+  if (!p) return;
+  if (p.observation) document.getElementById('mf-observation').value = p.observation;
+  this.value = ''; // reset picker after applying
+});
+
+function _initAnomalyForm(anomaly, index) {
+  // anomaly = existing anomaly object, or null for new
+  _anomalyEditIndex = index !== undefined ? index : null;
+
+  const next = ((currentData.anomalies || []).length + 1);
+  document.getElementById('mf-id').value         = anomaly ? (anomaly.id || '') : String(next).padStart(2, '0');
+  document.getElementById('mf-location').value   = anomaly ? (anomaly.location || '') : '';
+  document.getElementById('mf-area').value       = anomaly && anomaly.area_sqft != null ? anomaly.area_sqft : '';
+  document.getElementById('mf-observation').value = anomaly ? (anomaly.observation || '') : '';
+
+  // Image path: set from current markup image if loaded, otherwise show placeholder
+  _updateFormImageDisplay();
+
+  // Show delete btn only when editing an existing anomaly
+  document.getElementById('mf-delete-btn').style.display = (index !== undefined && index !== null) ? '' : 'none';
+  document.getElementById('mf-delete-btn').textContent = 'Delete';
+  document.getElementById('mf-delete-btn').dataset.confirm = '';
+
+  _refreshAnomalyPresetPicker();
+}
+
+function saveAnomalyFromMarkup() {
+  if (!currentData) return;
+
+  // Collect polygon from canvas if closed
+  const canvas = document.getElementById('markup-canvas');
+  let polygon = null;
+  if (_markupClosed && _markupPoints.length >= 3) {
+    polygon = _markupPoints.map(p => [
+      parseFloat((p.x / canvas.width).toFixed(5)),
+      parseFloat((p.y / canvas.height).toFixed(5)),
+    ]);
+  } else if (_anomalyEditIndex !== null && currentData.anomalies[_anomalyEditIndex]) {
+    // Keep existing polygon if nothing newly drawn
+    polygon = currentData.anomalies[_anomalyEditIndex].polygon_coords || null;
+  }
+
+  const anomaly = {
+    id:          document.getElementById('mf-id').value.trim(),
+    location:    document.getElementById('mf-location').value.trim(),
+    area_sqft:   parseFloat(document.getElementById('mf-area').value) || 0,
+    observation: document.getElementById('mf-observation').value.trim(),
+    image:       _anomalyEditImagePath || '',
+  };
+
+  if (polygon && polygon.length >= 3) anomaly.polygon_coords = polygon;
+  if (_orthoMarker) anomaly.orthomosaic_marker = { ..._orthoMarker };
+
+  if (!currentData.anomalies) currentData.anomalies = [];
+
+  if (_anomalyEditIndex === null) {
+    currentData.anomalies.push(anomaly);
+    // Reset form for next anomaly
+    _anomalyEditIndex = null;
+    const next = currentData.anomalies.length + 1;
+    document.getElementById('mf-id').value = String(next).padStart(2, '0');
+    document.getElementById('mf-location').value = '';
+    document.getElementById('mf-area').value = '';
+    document.getElementById('mf-observation').value = '';
+    // Clear the canvas polygon for the next anomaly
+    clearMarkupPolygon();
+    clearOrthoMarker();
+  } else {
+    currentData.anomalies[_anomalyEditIndex] = {
+      ...currentData.anomalies[_anomalyEditIndex],
+      ...anomaly,
+    };
+  }
+
+  renderAnomalies(currentData.anomalies);
+  setSaveStatus('Unsaved changes');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveInspection, 1500);
+}
+
+function deleteAnomalyFromMarkup() {
+  if (_anomalyEditIndex === null) return;
+  const btn = document.getElementById('mf-delete-btn');
+  if (btn.dataset.confirm !== '1') {
+    btn.textContent = 'Confirm delete?';
+    btn.dataset.confirm = '1';
+    setTimeout(() => { btn.textContent = 'Delete'; btn.dataset.confirm = ''; }, 3000);
+    return;
+  }
+  currentData.anomalies.splice(_anomalyEditIndex, 1);
+  renderAnomalies(currentData.anomalies);
+  closeMarkupModal();
+  setSaveStatus('Unsaved changes');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveInspection, 1500);
+}
+
+
+function _updateFormImageDisplay() {
+  const el = document.getElementById('mf-image-path');
+  if (!el) return;
+  if (_markupImageIndex >= 0 && _markupImageList[_markupImageIndex]) {
+    const f = _markupImageList[_markupImageIndex];
+    _anomalyEditImagePath = f.path;
+    el.textContent = f.name;
+    el.title = f.path;
+    el.classList.remove('empty');
+  } else {
+    _anomalyEditImagePath = null;
+    el.textContent = 'Select an image from the list';
+    el.title = '';
+    el.classList.add('empty');
+  }
+}
+
+function openEditAnomalyInMarkup(index) {
+  const a = currentData.anomalies[index];
+  _anomalyEditIndex = index;
+
+  // Set up the markup modal in edit mode
+  _markupMode = 'edit';
+  _markupAnomalyId = a.id || '?';
+
+  // Restore saved polygon/ortho so canvas can display them
+  // These will be loaded by _loadMarkupByIndex
+  _orthoMarker = a.orthomosaic_marker ? { ...a.orthomosaic_marker } : null;
+
+  _openMarkupModal();
+  _initAnomalyForm(a, index);
+}
+
+document.getElementById('btn-find-anomalies').addEventListener('click', openThermalReview);
+
+// ── Thermal markup modal ──────────────────────────────────────────────────────
+
+let _markupPoints     = [];   // [{x,y}] canvas pixel coords
+let _markupClosed     = false;
+let _markupImg        = null;
+let _markupImageList  = [];   // [{name, path}]
+let _markupImageIndex = -1;
+let _orthoImg         = null;
+let _orthoMarker      = null; // {x,y} normalized, or null
+let _markupAnomalyId  = '';
+let _markupMode       = 'review'; // 'edit' | 'review'
+const CLOSE_SNAP_PX   = 14;
+
+/** Shared helper: loads images and orthomosaic, opens the modal. */
+function _openMarkupModal() {
+  // Reset thermal canvas
+  _markupPoints = []; _markupClosed = false; _markupImg = null;
+  _markupImageList = []; _markupImageIndex = -1;
+  const mc = document.getElementById('markup-canvas');
+  mc.style.display = 'none'; mc.width = mc.height = 10;
+  document.getElementById('markup-no-image').textContent = 'Select an image from the list';
+  document.getElementById('markup-img-name').textContent = '—';
+  document.getElementById('markup-prev-btn').disabled = true;
+  document.getElementById('markup-next-btn').disabled = true;
+  _updateMarkupPointCount();
+
+  // Load thermal image list
+  const listEl = document.getElementById('markup-image-list-inner');
+
+  // In edit mode, if the anomaly already has a specific image, load just that image.
+  const editAnomaly = (_markupMode === 'edit' && _anomalyEditIndex !== null)
+    ? (currentData.anomalies[_anomalyEditIndex] || null) : null;
+  const editImageRel = editAnomaly && editAnomaly.image ? editAnomaly.image : null;
+
+  if (editImageRel && _inspectionFolder) {
+    // Single-image mode: show only the anomaly's assigned image
+    const absPath = _inspectionFolder + '/' + editImageRel;
+    const name = editImageRel.split('/').pop();
+    _markupImageList = [{ name, path: absPath }];
+    listEl.innerHTML = '';
+    const item = document.createElement('div');
+    item.className = 'markup-img-item active';
+    item.textContent = name;
+    item.title = absPath;
+    item.dataset.index = 0;
+    item.onclick = () => _loadMarkupByIndex(0);
+    listEl.appendChild(item);
+    _loadMarkupByIndex(0);
+  } else {
+    // Review mode (or edit mode without an assigned image): show full thermal folder
+    const folder = currentData && currentData.images && currentData.images.thermal_images_folder;
+    if (!folder) {
+      listEl.innerHTML = '<div style="padding:14px 12px;font-size:12px;color:var(--muted);">No thermal folder selected. Set one in the Thermal images section first.</div>';
+    } else {
+      listEl.innerHTML = '<div class="markup-img-item" style="color:var(--muted);">Loading…</div>';
+      fetch(`/api/list-files?path=${encodeURIComponent(folder)}`)
+        .then(r => r.json())
+        .then(json => {
+          _markupImageList = json.files || [];
+          if (_markupImageList.length === 0) {
+            listEl.innerHTML = '<div style="padding:14px 12px;font-size:12px;color:var(--muted);">No images found in folder.</div>';
+            return;
+          }
+          listEl.innerHTML = '';
+          _markupImageList.forEach((f, i) => {
+            const item = document.createElement('div');
+            item.className = 'markup-img-item';
+            item.textContent = f.name;
+            item.title = f.path;
+            item.dataset.index = i;
+            item.onclick = () => _loadMarkupByIndex(i);
+            listEl.appendChild(item);
+          });
+          _loadMarkupByIndex(0);
+        })
+        .catch(() => {
+          listEl.innerHTML = '<div style="padding:14px 12px;font-size:12px;color:var(--danger);">Could not read folder.</div>';
+        });
+    }
+  }
+
+  // Load orthomosaic
+  _orthoImg = null;
+  const orthoPath = currentData && currentData.images && currentData.images.orthomosaic;
+  const oc    = document.getElementById('ortho-canvas');
+  const oNone = document.getElementById('ortho-no-image');
+  oc.style.display = 'none'; oc.width = oc.height = 10;
+  if (!orthoPath) {
+    oNone.textContent = 'No orthomosaic image set'; oNone.style.display = 'block';
+  } else {
+    oNone.textContent = 'Loading…'; oNone.style.display = 'block';
+    const img = new Image();
+    img.onload = () => {
+      _orthoImg = img;
+      const container = oc.parentElement;
+      const scale = Math.min((container.clientWidth  - 20) / img.naturalWidth,
+                             (container.clientHeight - 20) / img.naturalHeight, 1);
+      oc.width  = Math.round(img.naturalWidth  * scale);
+      oc.height = Math.round(img.naturalHeight * scale);
+      oNone.style.display = 'none'; oc.style.display = 'block';
+      _renderOrthoCanvas(); _updateOrthoStatus();
+    };
+    img.onerror = () => { oNone.textContent = 'Could not load orthomosaic.'; };
+    img.src = `/api/image?path=${encodeURIComponent(orthoPath)}`;
+  }
+  _updateOrthoStatus();
+  document.getElementById('markup-modal').classList.add('open');
+}
+
+function openThermalReview() {
+  _markupMode = 'review';
+  _markupAnomalyId = '';
+  _anomalyEditIndex = null;
+  _orthoMarker = null;
+  _openMarkupModal();
+  _initAnomalyForm(null);
+}
+
+function _loadMarkupByIndex(i) {
+  if (i < 0 || i >= _markupImageList.length) return;
+  _markupImageIndex = i;
+
+  document.querySelectorAll('.markup-img-item').forEach(el => {
+    const active = parseInt(el.dataset.index) === i;
+    el.classList.toggle('active', active);
+    if (active) el.scrollIntoView({ block: 'nearest' });
+  });
+  document.getElementById('markup-prev-btn').disabled = i === 0;
+  document.getElementById('markup-next-btn').disabled = i === _markupImageList.length - 1;
+  document.getElementById('markup-img-name').textContent = _markupImageList[i].name;
+
+  _markupPoints = []; _markupClosed = false;
+
+  const canvas = document.getElementById('markup-canvas');
+  const noImg  = document.getElementById('markup-no-image');
+  noImg.textContent = 'Loading…'; noImg.style.display = 'block';
+  canvas.style.display = 'none';
+
+  const img = new Image();
+  img.onload = () => {
+    _markupImg = img;
+    const container = canvas.parentElement;
+    const scale = Math.min((container.clientWidth  - 20) / img.naturalWidth,
+                           (container.clientHeight - 20) / img.naturalHeight, 1);
+    canvas.width  = Math.round(img.naturalWidth  * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    noImg.style.display = 'none'; canvas.style.display = 'block';
+
+    // Restore existing polygon (edit mode only, on first image load)
+    const existingPolygon = (_markupMode === 'edit' && _anomalyEditIndex !== null)
+      ? (currentData.anomalies[_anomalyEditIndex] || {}).polygon_coords
+      : null;
+    if (existingPolygon && existingPolygon.length >= 3) {
+      _markupPoints = existingPolygon.map(([nx, ny]) => ({
+        x: nx * canvas.width, y: ny * canvas.height,
+      }));
+      _markupClosed = true;
+    }
+    _renderMarkupCanvas(); _updateMarkupPointCount();
+    _updateFormImageDisplay();
+  };
+  img.onerror = () => { noImg.textContent = 'Could not load image.'; };
+  img.src = `/api/image?path=${encodeURIComponent(_markupImageList[i].path)}`;
+}
+
+function markupNavPrev() { _loadMarkupByIndex(_markupImageIndex - 1); }
+function markupNavNext() { _loadMarkupByIndex(_markupImageIndex + 1); }
+
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('markup-modal').classList.contains('open')) return;
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); markupNavPrev(); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); markupNavNext(); }
+});
+
+function _renderMarkupCanvas() {
+  const canvas = document.getElementById('markup-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (_markupImg) ctx.drawImage(_markupImg, 0, 0, canvas.width, canvas.height);
+  if (_markupPoints.length === 0) return;
+
+  ctx.beginPath();
+  ctx.moveTo(_markupPoints[0].x, _markupPoints[0].y);
+  for (let i = 1; i < _markupPoints.length; i++) ctx.lineTo(_markupPoints[i].x, _markupPoints[i].y);
+  if (_markupClosed) { ctx.closePath(); ctx.fillStyle = 'rgba(255,100,0,0.28)'; ctx.fill(); }
+  ctx.strokeStyle = '#ff6400'; ctx.lineWidth = 2; ctx.stroke();
+
+  _markupPoints.forEach((p, i) => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, i === 0 ? 7 : 5, 0, Math.PI * 2);
+    ctx.fillStyle = i === 0 ? '#fff' : '#ff6400';
+    ctx.strokeStyle = '#ff6400'; ctx.lineWidth = 2;
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = i === 0 ? '#ff6400' : '#fff';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(i + 1, p.x, p.y);
+  });
+}
+
+function _renderOrthoCanvas() {
+  const canvas = document.getElementById('ortho-canvas');
+  if (!_orthoImg) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(_orthoImg, 0, 0, canvas.width, canvas.height);
+  if (!_orthoMarker) return;
+
+  const mx = _orthoMarker.x * canvas.width;
+  const my = _orthoMarker.y * canvas.height;
+
+  // Pin circle
+  ctx.beginPath();
+  ctx.arc(mx, my, 11, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,100,0,0.3)'; ctx.fill();
+  ctx.strokeStyle = '#ff6400'; ctx.lineWidth = 2.5; ctx.stroke();
+
+  // Crosshairs
+  ctx.strokeStyle = '#ff6400'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(mx - 15, my); ctx.lineTo(mx + 15, my); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(mx, my - 15); ctx.lineTo(mx, my + 15); ctx.stroke();
+
+  // Anomaly ID label
+  const label = _markupAnomalyId || '?';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillText(label, mx + 16, my + 1);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(label, mx + 15, my);
+}
+
+document.getElementById('markup-canvas').addEventListener('click', e => {
+  if (!_markupImg || _markupClosed) return;
+  const canvas = document.getElementById('markup-canvas');
+  const rect = canvas.getBoundingClientRect();
+  const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+  const x = (e.clientX - rect.left) * sx;
+  const y = (e.clientY - rect.top)  * sy;
+
+  if (_markupPoints.length >= 3) {
+    const f = _markupPoints[0];
+    if (Math.hypot((x - f.x) / sx, (y - f.y) / sy) < CLOSE_SNAP_PX) {
+      _markupClosed = true;
+      _renderMarkupCanvas(); _updateMarkupPointCount(); return;
+    }
+  }
+  _markupPoints.push({x, y});
+  _renderMarkupCanvas(); _updateMarkupPointCount();
+});
+
+document.getElementById('ortho-canvas').addEventListener('click', e => {
+  if (!_orthoImg) return;
+  const canvas = document.getElementById('ortho-canvas');
+  const rect = canvas.getBoundingClientRect();
+  _orthoMarker = {
+    x: parseFloat(((e.clientX - rect.left) / rect.width).toFixed(5)),
+    y: parseFloat(((e.clientY - rect.top)  / rect.height).toFixed(5)),
+  };
+  _renderOrthoCanvas(); _updateOrthoStatus();
+});
+
+function clearMarkupPolygon() {
+  _markupPoints = []; _markupClosed = false;
+  _renderMarkupCanvas(); _updateMarkupPointCount();
+}
+
+function undoLastMarkupPoint() {
+  if (_markupClosed) _markupClosed = false; else _markupPoints.pop();
+  _renderMarkupCanvas(); _updateMarkupPointCount();
+}
+
+function clearOrthoMarker() {
+  _orthoMarker = null;
+  _renderOrthoCanvas(); _updateOrthoStatus();
+}
+
+function _updateMarkupPointCount() {
+  const el = document.getElementById('markup-point-count');
+  if (!_markupImg)                     el.textContent = '';
+  else if (_markupPoints.length === 0) el.textContent = 'Click to start drawing a polygon';
+  else if (!_markupClosed)             el.textContent = `${_markupPoints.length} pt${_markupPoints.length > 1 ? 's' : ''} — click near pt 1 to close`;
+  else                                 el.textContent = `Polygon closed (${_markupPoints.length} pts) ✓`;
+
+  // Also update form panel status
+  const ps = document.getElementById('mf-polygon-status');
+  if (!ps) return;
+  if (_markupClosed && _markupPoints.length >= 3) {
+    ps.textContent = `${_markupPoints.length} points marked ✓`;
+    ps.style.color = 'var(--ok)';
+  } else {
+    ps.textContent = 'None marked';
+    ps.style.color = 'var(--muted)';
+  }
+}
+
+function _updateOrthoStatus() {
+  const el  = document.getElementById('ortho-marker-status');
+  const btn = document.getElementById('ortho-clear-btn');
+  if (_orthoMarker) {
+    el.textContent = 'Marker placed ✓'; el.style.color = 'var(--ok)';
+    btn.style.display = '';
+  } else {
+    el.textContent = 'Click on the orthomosaic to place a location marker';
+    el.style.color = 'var(--muted)'; btn.style.display = 'none';
+  }
+  // Also update form panel status
+  const os = document.getElementById('mf-ortho-status-short');
+  if (!os) return;
+  if (_orthoMarker) {
+    os.textContent = 'Placed ✓'; os.style.color = 'var(--ok)';
+  } else {
+    os.textContent = 'Not placed'; os.style.color = 'var(--muted)';
+  }
+}
+
+
+function closeMarkupModal() {
+  document.getElementById('markup-modal').classList.remove('open');
+}
+
+// Close picker on backdrop click
+document.getElementById('file-browser-panel').addEventListener('click', function(e) {
+  if (e.target === this) closeFilePicker();
+});
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+browse();
+</script>
+</body>
+</html>
