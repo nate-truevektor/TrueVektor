@@ -58,10 +58,13 @@ class Equipment(BaseModel):
 class OverviewImages(BaseModel):
     """Inspection-level images (not per-anomaly)."""
     aerial_visual: str = Field(..., description="Path to aerial visual image, relative to inspection folder")
-    aerial_thermal: str = Field(..., description="Path to aerial thermal image, relative to inspection folder")
-    overview_annotated: str = Field(..., description="Path to annotated overview image, relative to inspection folder")
+    aerial_thermal: Optional[str] = Field(None, description="Deprecated — retained for backward compatibility only")
+    overview_annotated: Optional[str] = Field(None, description="Path to annotated overview image, relative to inspection folder")
     orthomosaic: Optional[str] = Field(
         None, description="Path to orthomosaic image (from 3rd-party software), relative to inspection folder"
+    )
+    thermal_images_folder: Optional[str] = Field(
+        None, description="Absolute path to folder containing nadiral thermal images for anomaly markup"
     )
 
 
@@ -78,9 +81,9 @@ class Anomaly(BaseModel):
     id: str = Field(..., description="Zero-padded string ID, e.g. '01', '02'")
     location: str = Field(..., description="Plain-English location on the roof")
     area_sqft: float = Field(..., gt=0, description="Approximate anomalous area in square feet")
-    severity: str = Field(..., description="e.g. 'moderate', 'severe'")
+    severity: Optional[str] = Field(None, description="e.g. 'moderate', 'severe'")
     observation: str = Field(..., description="What was observed thermally")
-    recommendation: str = Field(..., description="Recommended follow-up action")
+    recommendation: Optional[str] = Field(None, description="Recommended follow-up action (optional)")
     image: str = Field(..., description="Path to close-up image, relative to inspection folder")
 
     # Set by the thermal image markup UI (issue #11)
@@ -110,7 +113,7 @@ class InspectionReport(BaseModel):
     property: Property
     inspection: InspectionConditions
     technician: Technician
-    equipment: Equipment
+    equipment: List[Equipment] = Field(..., min_length=1, description="One or more pieces of equipment used")
     images: OverviewImages
     anomalies: List[Anomaly] = Field(default_factory=list)
 
