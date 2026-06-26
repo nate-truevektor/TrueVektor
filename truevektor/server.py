@@ -90,6 +90,8 @@ _DEFAULT_SETTINGS: dict = {
     "equipment_presets": [],   # list of {name, detector, temperature_range}
     "anomaly_presets": [],     # list of {name, observation}
     "page2_sections":  [],     # list of {heading, body}
+    "polygon_stroke_color": "#ff6400",
+    "polygon_stroke_width": 2,
 }
 
 

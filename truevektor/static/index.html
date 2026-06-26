@@ -520,6 +520,21 @@
         </div>
       </div>
 
+      <!-- Polygon appearance -->
+      <div class="section-card">
+        <header><span>Polygon appearance</span></header>
+        <div class="fields">
+          <div class="field-row">
+            <label for="s-polygon-color">Line color</label>
+            <input type="color" id="s-polygon-color" value="#ff6400" style="width:48px;height:32px;padding:2px 4px;cursor:pointer;" />
+          </div>
+          <div class="field-row">
+            <label for="s-polygon-width">Line thickness (px)</label>
+            <input type="number" id="s-polygon-width" min="1" max="12" step="1" value="2" style="width:72px;" />
+          </div>
+        </div>
+      </div>
+
       <!-- Technician defaults -->
       <div class="section-card">
         <header><span>Your information</span></header>
@@ -1085,37 +1100,50 @@ document.getElementById('btn-generate-report').addEventListener('click', async (
     const json = await res.json();
 
     if (!res.ok || !json.ok) {
-      alert('Report generation failed:\n' + (json.error || 'Unknown error'));
+      btn.textContent = 'Generation failed';
+      btn.style.color = 'var(--danger)';
+      setTimeout(() => { btn.textContent = originalText; btn.style.color = ''; }, 4000);
+      console.error('Report generation failed:', json.error, json.detail);
       return;
     }
 
-    // Download the generated file via the /api/download endpoint
-    const downloadUrl = '/api/download?path=' + encodeURIComponent(json.path);
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.download = 'inspection-report.docx';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    btn.textContent = 'Report saved ✓';
+    btn.style.color = 'var(--ok)';
+    setTimeout(() => { btn.textContent = originalText; btn.style.color = ''; }, 3000);
   } catch (err) {
-    alert('Report generation error:\n' + err.message);
+    btn.textContent = 'Generation failed';
+    btn.style.color = 'var(--danger)';
+    setTimeout(() => { btn.textContent = originalText; btn.style.color = ''; }, 4000);
+    console.error('Report generation error:', err);
   } finally {
     btn.disabled = false;
-    btn.textContent = originalText;
   }
 });
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 async function loadSettings() {
-  const res = await fetch('/api/settings');
-  currentSettings = await res.json();
-  populateSettingsForm(currentSettings);
+  try {
+    const res = await fetch('/api/settings');
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    currentSettings = data;
+    populateSettingsForm(currentSettings);
+  } catch (e) {
+    console.error('loadSettings failed:', e);
+    setSettingsStatus('Could not load settings: ' + e.message, 'var(--danger)');
+    // Still populate with whatever we have so the form isn't broken
+    if (!currentSettings) currentSettings = {};
+    populateSettingsForm(currentSettings);
+  }
 }
 
 function populateSettingsForm(s) {
   const t = s.technician || {};
   document.getElementById('s-company-name').value  = s.company_name || '';
   _updateLogoDisplay(s.logo_path || '');
+  document.getElementById('s-polygon-color').value = s.polygon_stroke_color || '#ff6400';
+  document.getElementById('s-polygon-width').value = s.polygon_stroke_width ?? 2;
   document.getElementById('s-tech-name').value     = t.name || '';
   document.getElementById('s-tech-cert').value     = t.certification || '';
   document.getElementById('s-tech-email').value    = t.email || '';
@@ -1289,30 +1317,34 @@ function collectSettingsForm() {
       email:         document.getElementById('s-tech-email').value.trim() || null,
       phone:         document.getElementById('s-tech-phone').value.trim() || null,
     },
-    default_narrative: document.getElementById('s-narrative').value.trim() || '',
-    equipment_presets: collectPresets(),
-    anomaly_presets:   collectAnomalyPresets(),
-    page2_sections:    collectPage2Sections(),
+    default_narrative:    document.getElementById('s-narrative').value.trim() || '',
+    equipment_presets:    collectPresets(),
+    anomaly_presets:      collectAnomalyPresets(),
+    page2_sections:       collectPage2Sections(),
+    polygon_stroke_color: document.getElementById('s-polygon-color').value || '#ff6400',
+    polygon_stroke_width: parseInt(document.getElementById('s-polygon-width').value, 10) || 2,
   };
 }
 
 async function saveSettings() {
   const data = collectSettingsForm();
   setSettingsStatus('Saving…');
-  const res = await fetch('/api/settings', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(data),
-  });
-  const json = await res.json();
-  if (json.error) {
-    setSettingsStatus('Save failed: ' + json.error, 'var(--danger)');
-  } else {
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
     currentSettings = data;
     setSettingsStatus('Saved ✓', 'var(--ok)');
     setTimeout(() => setSettingsStatus(''), 3000);
     // Refresh equipment preset picker if inspection is open
     if (currentData) refreshPresetPicker();
+  } catch (e) {
+    setSettingsStatus('Save failed: ' + e.message, 'var(--danger)');
   }
 }
 
@@ -1925,19 +1957,22 @@ function _renderMarkupCanvas() {
   if (_markupImg) ctx.drawImage(_markupImg, 0, 0, canvas.width, canvas.height);
   if (_markupPoints.length === 0) return;
 
+  const strokeColor = (currentSettings && currentSettings.polygon_stroke_color) || '#ff6400';
+  const strokeWidth = (currentSettings && currentSettings.polygon_stroke_width) || 2;
+
   ctx.beginPath();
   ctx.moveTo(_markupPoints[0].x, _markupPoints[0].y);
   for (let i = 1; i < _markupPoints.length; i++) ctx.lineTo(_markupPoints[i].x, _markupPoints[i].y);
-  if (_markupClosed) { ctx.closePath(); ctx.fillStyle = 'rgba(255,100,0,0.28)'; ctx.fill(); }
-  ctx.strokeStyle = '#ff6400'; ctx.lineWidth = 2; ctx.stroke();
+  if (_markupClosed) ctx.closePath();
+  ctx.strokeStyle = strokeColor; ctx.lineWidth = strokeWidth; ctx.stroke();
 
   _markupPoints.forEach((p, i) => {
     ctx.beginPath();
     ctx.arc(p.x, p.y, i === 0 ? 7 : 5, 0, Math.PI * 2);
-    ctx.fillStyle = i === 0 ? '#fff' : '#ff6400';
-    ctx.strokeStyle = '#ff6400'; ctx.lineWidth = 2;
+    ctx.fillStyle = i === 0 ? '#fff' : strokeColor;
+    ctx.strokeStyle = strokeColor; ctx.lineWidth = 2;
     ctx.fill(); ctx.stroke();
-    ctx.fillStyle = i === 0 ? '#ff6400' : '#fff';
+    ctx.fillStyle = i === 0 ? strokeColor : '#fff';
     ctx.font = 'bold 10px sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(i + 1, p.x, p.y);
@@ -2072,6 +2107,7 @@ document.getElementById('file-browser-panel').addEventListener('click', function
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
 browse();
+loadSettings();  // pre-fetch so settings form is populated before user navigates there
 </script>
 </body>
 </html>
