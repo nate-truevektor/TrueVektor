@@ -16,6 +16,19 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
+from docx.shared import RGBColor
+
+
+def _hex_to_rgb(hex_color: str) -> tuple:
+    """Convert '#rrggbb' to (r, g, b) integers."""
+    h = hex_color.lstrip("#")
+    if len(h) != 6:
+        return (255, 100, 0)
+    try:
+        return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+    except ValueError:
+        return (255, 100, 0)
+
 
 # ---------------------------------------------------------------------------
 # Public entry point
@@ -52,6 +65,8 @@ def generate_report(folder: Path, settings: dict) -> Path:
     logo_path_str  = settings.get("logo_path") or ""
     logo_path      = Path(logo_path_str) if logo_path_str else None
     page2_sections = settings.get("page2_sections") or []
+    poly_color     = _hex_to_rgb(settings.get("polygon_stroke_color") or "#ff6400")
+    poly_width     = int(settings.get("polygon_stroke_width") or 2)
 
     report_date    = inspection.get("report_date") or inspection.get("date") or ""
     insp_date      = inspection.get("date") or ""
@@ -73,8 +88,11 @@ def generate_report(folder: Path, settings: dict) -> Path:
     sec.right_margin    = Inches(1.0)
     sec.top_margin      = Inches(1.2)
     sec.bottom_margin   = Inches(1.0)
-    sec.header_distance = Inches(0.4)
-    sec.footer_distance = Inches(0.4)
+    try:
+        sec.header_distance = Inches(0.4)
+        sec.footer_distance = Inches(0.4)
+    except AttributeError:
+        pass  # older python-docx versions don't expose these as writable
 
     _set_header(sec, logo_path, doc)
     _set_footer(sec, company_name, report_date)
@@ -122,7 +140,7 @@ def generate_report(folder: Path, settings: dict) -> Path:
     if anomalies:
         doc.add_page_break()
         _add_section_heading(doc, "ANOMALY DETAILS")
-        _add_anomaly_pages(doc, folder, anomalies)
+        _add_anomaly_pages(doc, folder, anomalies, poly_color, poly_width)
 
     # ── Save ──────────────────────────────────────────────────────────────────
     out_path = folder / "inspection-report.docx"
@@ -145,8 +163,8 @@ def _set_header(section, logo_path: Optional[Path], doc) -> None:
     from docx.oxml import OxmlElement
 
     header = section.header
-    # Remove default empty paragraph
-    for p in header.paragraphs:
+    # Remove default empty paragraph (copy list first — modifying live collection skips elements)
+    for p in list(header.paragraphs):
         p._element.getparent().remove(p._element)
 
     # Two-column table: [logo] [title]
@@ -301,10 +319,8 @@ def _add_info_page(doc, inspection, tech, equip_list, narrative):
             rng   = eq.get("temperature_range") or ""
             parts = [x for x in [name, det, rng] if x]
             if parts:
-                doc.add_paragraph(
-                    " — ".join(parts),
-                    style="List Bullet"
-                )
+                p = doc.add_paragraph()
+                p.add_run("• " + " — ".join(parts))
 
     # Narrative / findings
     if narrative:
@@ -318,7 +334,7 @@ def _add_info_page(doc, inspection, tech, equip_list, narrative):
 # Anomaly grid pages
 # ---------------------------------------------------------------------------
 
-def _add_anomaly_pages(doc, folder: Path, anomalies: list) -> None:
+def _add_anomaly_pages(doc, folder: Path, anomalies: list, poly_color=(255,100,0), poly_width=2) -> None:
     from docx.shared import Inches, Pt
     from docx.enum.text import WD_ALIGN_PARAGRAPH
 
@@ -364,7 +380,7 @@ def _add_anomaly_pages(doc, folder: Path, anomalies: list) -> None:
                 img_path = folder / img_rel
                 if img_path.is_file():
                     try:
-                        composited = _composite_anomaly(img_path, poly_coords)
+                        composited = _composite_anomaly(img_path, poly_coords, poly_color, poly_width)
                         img_bytes  = _pil_to_bytes(composited)
                     except Exception:
                         img_bytes = None
@@ -412,8 +428,8 @@ def _add_anomaly_pages(doc, folder: Path, anomalies: list) -> None:
 # Image compositing (Pillow)
 # ---------------------------------------------------------------------------
 
-def _composite_anomaly(img_path: Path, poly_coords) -> "Image":
-    """Draw semi-transparent polygon overlay on a thermal image."""
+def _composite_anomaly(img_path: Path, poly_coords, stroke_color=(255,100,0), stroke_width=2) -> "Image":
+    """Draw polygon outline on a thermal image (no fill)."""
     from PIL import Image, ImageDraw
 
     img = Image.open(img_path).convert("RGBA")
@@ -424,12 +440,14 @@ def _composite_anomaly(img_path: Path, poly_coords) -> "Image":
 
     if poly_coords and len(poly_coords) >= 3:
         pixels = [(float(x) * w, float(y) * h) for x, y in poly_coords]
-        draw.polygon(pixels, fill=(255, 60, 60, 70))
-        # Draw border (close the polygon)
+        r, g, b = stroke_color
+        # Scale line width relative to image size; honour user setting as a minimum
+        line_w = max(stroke_width, w // 300)
+        border_color = (r, g, b, 230)
         for i in range(len(pixels)):
             p1 = pixels[i]
             p2 = pixels[(i + 1) % len(pixels)]
-            draw.line([p1, p2], fill=(255, 60, 60, 230), width=max(2, w // 200))
+            draw.line([p1, p2], fill=border_color, width=line_w)
 
     composited = Image.alpha_composite(img, overlay).convert("RGB")
     return composited
@@ -563,7 +581,12 @@ def _remove_table_borders(tbl) -> None:
     from docx.oxml.ns import qn
     from docx.oxml import OxmlElement
 
-    tbl_pr = tbl._tbl.get_or_add_tblPr()
+    tbl_el = tbl._tbl
+    tbl_pr = tbl_el.find(qn("w:tblPr"))
+    if tbl_pr is None:
+        tbl_pr = OxmlElement("w:tblPr")
+        tbl_el.insert(0, tbl_pr)
+
     tbl_borders = OxmlElement("w:tblBorders")
     for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
         el = OxmlElement(f"w:{side}")
